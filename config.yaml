@@ -1,0 +1,6 @@
+model:
+  path: 'D:\namespace\tensorflow-project-namespace\MCP-Win-Control\model\qwen3-0.6'
+  name: 'default-embedding-model'
+
+chroma:
+  save_path: 'D:\namespace\tensorflow-project-namespace\MCP-Win-Control\dataset\chroma'

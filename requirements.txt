@@ -1,0 +1,42 @@
+# 加上对应的版本
+modelscope[framework]==1.32.0
+transformers==4.57.3
+trl==0.26.0
+yapf==0.32.0
+scikit-learn==1.7.2
+accelerate==1.12.0
+# 模型导出需要使用的包
+onnx==1.19.1
+onnxruntime
+# 模型评测服务
+evalscope[all]
+# huggingface
+langchain_huggingface==1.2.0
+# 支持文档分块
+langchain-text-splitters==1.1.0
+langgraph==1.0.5
+# mcp_win
+mcp==1.24.0
+# 增加yaml
+PyYAML>=6.0
+# ETL 数据清洗服务依赖
+# PDF 处理（推荐 pdfplumber，对表格支持好）
+pdfplumber>=0.10.0
+PyPDF2>=3.0.0
+# Word 文档处理
+python-docx>=1.1.0
+# HTML 处理
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+# Markdown 处理（可选）
+markdown>=3.5.0
+# 高级 PDF 处理（可选，需要 API 密钥）
+# unstructured>=0.10.0
+# unstructured[pdf]>=0.10.0
+
+# web应用
+flet==0.28.3
+# 向量数据库
+chromadb>=0.4.0
+# BM25 检索
+rank-bm25>=0.2.2

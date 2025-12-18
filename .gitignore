@@ -1,0 +1,94 @@
+# --- Python 编译文件 (Bytecode) ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 去掉模型的上传
+model/
+
+# --- C 扩展 ---
+*.so
+
+# --- 虚拟环境 (Virtual Environments) ---
+# 常见的虚拟环境文件夹名称
+env/
+venv/
+.venv/
+.env/
+venv.bak/
+
+# --- 依赖库打包/分发 (Distribution / Packaging) ---
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+MANIFEST
+
+# --- 单元测试与代码覆盖率 (Unit Test / Coverage) ---
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# --- 文档生成 (Documentation) ---
+docs/_build/
+site/
+
+# --- 翻译文件 (Translations) ---
+*.mo
+*.pot
+
+# --- Django 框架 (如果使用) ---
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# --- Flask 框架 (如果使用) ---
+instance/
+.webassets-cache
+
+# --- Flet / GUI 打包 ---
+# 如果你刚才做的是 Flet/PyInstaller 打包，这些也会生成
+*.spec
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints
+
+# --- IDE 配置 (编辑器生成的配置，不要上传) ---
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# PyCharm / IntelliJ IDEA
+.idea/
+
+# --- 环境变量与密钥 (非常重要！安全！) ---
+# 包含 API Key 或数据库密码的文件绝对不能上传
+.env
+.env.local
+.env.*.local
+
+# --- 操作系统生成的文件 (OS Generated) ---
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
