@@ -3,8 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# 去掉模型的上传
+# 去掉模型
 model/
+# 去掉数据层
+dataset/
 
 # --- C 扩展 ---
 *.so

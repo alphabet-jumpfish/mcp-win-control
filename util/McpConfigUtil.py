@@ -40,7 +40,30 @@ class ConfigUtil:
                     if chroma_save_path:
                         # 规范化路径分隔符
                         chroma_save_path = chroma_save_path.replace('\\', '/')
-                    print(f"从配置文件加载模型路径: {chroma_save_path}")
+                    print(f"从配置文件加载Chroma路径: {chroma_save_path}")
+                    return chroma_save_path
+            else:
+                print(f"配置文件不存在: {config_path}")
+                return None
+        except yaml.YAMLError as e:
+            print(f"YAML格式错误: {e}")
+            return None
+        except Exception as e:
+            print(f"配置文件读取失败: {e}")
+            return None
+
+    @staticmethod
+    def load_sqlite_db_path_from_config(config_path):
+        """从YAML配置文件中加载模型路径"""
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as file:
+                    config = yaml.safe_load(file)
+                    chroma_save_path = config.get('sqlite', {}).get('db_path')
+                    if chroma_save_path:
+                        # 规范化路径分隔符
+                        chroma_save_path = chroma_save_path.replace('\\', '/')
+                    print(f"从配置文件加载SQLite路径: {chroma_save_path}")
                     return chroma_save_path
             else:
                 print(f"配置文件不存在: {config_path}")

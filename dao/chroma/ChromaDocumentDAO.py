@@ -1,6 +1,6 @@
 import chromadb
 from chromadb.config import Settings
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TypedDict
 from datetime import datetime
 import uuid
 import os
@@ -11,7 +11,19 @@ from util.McpConfigUtil import ConfigUtil
 from util.McpConstant import Constant
 
 
-class ChromaDAO:
+class Document(TypedDict, total=False):
+    title: str
+    url: str
+    timestamp: Optional[datetime]
+    category: Optional[str]
+    embedding: Optional[List[float]]
+    document_text: Optional[str]
+    metadata: Optional[Dict[str, Any]]
+    dataset_type: Optional[str]
+    context_id: Optional[str]
+
+
+class ChromaDocumentDAO:
     """
     使用 Chroma 框架存储向量数据的 DAO 类
     存储字段：title, url, timestamp, category 和向量维度
@@ -24,7 +36,7 @@ class ChromaDAO:
             embedding_function=None
     ):
         """
-        初始化 ChromaDAO
+        初始化 ChromaDocumentDAO
         
         Args:
             collection_name: 集合名称，默认为 "documents"
@@ -63,6 +75,19 @@ class ChromaDAO:
                 metadata={"hnsw:space": "cosine"}
             )
 
+    def add_document_dict(self, document: Document) -> str:
+        return self.add_document(
+            title=document.get("title"),
+            url=document.get("url"),
+            timestamp=document.get("timestamp"),
+            category=document.get("category"),
+            embedding=document.get("embedding"),
+            document_text=document.get("document_text"),
+            metadata=document.get("metadata"),
+            dataset_type=document.get("dataset_type"),
+            context_id=document.get("context_id")
+        )
+
     def add_document(
             self,
             title: str,
@@ -72,7 +97,8 @@ class ChromaDAO:
             embedding: Optional[List[float]] = None,
             document_text: Optional[str] = None,
             metadata: Optional[Dict[str, Any]] = None,
-            dataset_type: Optional[str] = None
+            dataset_type: Optional[str] = None,
+            context_id: Optional[str] = None
     ) -> str:
         """
         添加文档到向量数据库
@@ -99,6 +125,7 @@ class ChromaDAO:
             "category": category or "",
             "timestamp": timestamp.isoformat() if timestamp else datetime.now().isoformat(),
             "dataset_type": dataset_type or "",
+            "context_id": context_id or ""
         }
 
         # 合并额外的元数据
@@ -224,10 +251,8 @@ class ChromaDAO:
     def get_by_id(self, doc_id: str) -> Optional[Dict[str, Any]]:
         """
         根据 ID 获取文档
-        
         Args:
             doc_id: 文档 ID
-            
         Returns:
             文档信息字典，如果不存在则返回 None
         """
@@ -243,6 +268,41 @@ class ChromaDAO:
             "embedding": results["embeddings"][0] if results["embeddings"] else None
         }
 
+    def get_by_context_ids(self, context_id: str, limit: int = 10) -> Optional[Dict[str, Any]]:
+        """
+        根据 ID 获取文档
+        Args:
+            context_id: 上下文主键
+        Returns:
+            文档信息字典，如果不存在则返回 None
+        """
+        try:
+            # 使用 Chroma 的 get 方法，通过 where 条件查询 context_id
+            results = self.collection.get(
+                where={"context_id": context_id},
+                limit=limit
+            )
+
+            # 检查是否有查询结果
+            if not results["ids"]:
+                return None
+            items = []
+            if len(results["ids"]) is not 0:
+                for i in range(len(results["ids"])):
+                    item = {
+                        "id": results["ids"][i],
+                        "metadata": results["metadatas"][i] if results["metadatas"] else {},
+                        "document": results["documents"][i] if results["documents"] else None,
+                        "embedding": results["embeddings"][i] if results["embeddings"] else None
+                    }
+                    items.append(item)
+            # 返回第一个匹配的文档（通常 context_id 应该是唯一的）
+            return items
+        except Exception as e:
+            # 记录错误日志（如果需要的话）
+            print(f"查询 context_id '{context_id}' 时发生错误: {e}")
+            return None
+
     def update_document(
             self,
             doc_id: str,
@@ -253,7 +313,8 @@ class ChromaDAO:
             embedding: Optional[List[float]] = None,
             document_text: Optional[str] = None,
             metadata: Optional[Dict[str, Any]] = None,
-            dataset_type: Optional[str] = None
+            dataset_type: Optional[str] = None,
+            context_id: Optional[str] = None
     ) -> bool:
         """
         更新文档
@@ -288,6 +349,8 @@ class ChromaDAO:
             existing_metadata["category"] = category
         if dataset_type is not None:
             existing_metadata["dataset_type"] = dataset_type
+        if context_id is not None:
+            existing_metadata["context_id"] = context_id
         if metadata:
             existing_metadata.update(metadata)
 
@@ -419,9 +482,9 @@ if __name__ == '__main__':
     # import numpy as np
     #
     # 第一步 初始化 DAO（使用持久化模式）
-    schema = "test_schema"
+    schema = "schema"
     chroma_save_path = ConfigUtil.load_chroma_save_path_from_config(Constant.CONFIG_PATH)
-    dao = ChromaDAO(
+    dao = ChromaDocumentDAO(
         collection_name=schema,
         persist_directory=chroma_save_path
     )
@@ -438,6 +501,7 @@ if __name__ == '__main__':
     print(f"向量列表数据: {embedding_dataset.tolist()}")
     #
     #
+    context_id = "20251219_context_id"
     # doc_id = dao.add_document(
     #     title=title,
     #     url="",
@@ -445,21 +509,23 @@ if __name__ == '__main__':
     #     category="技术文档",
     #     embedding=embedding_dataset.tolist(),
     #     document_text=document_text,
-    #     dataset_type=DatasetType.CHROMA.value
+    #     dataset_type=DatasetType.CHROMA.value,
+    #     context_id=context_id
     # )
-    # #
+    # # #
     # print(f"添加文档成功，ID: {doc_id}")
+    # print(f"添加文档成功，context_id: {context_id}")
 
     #
     # # 查询相似文档
     # query_embedding = np.random.rand(embedding_dim).tolist()
-    results = dao.query(
-        query_embedding=embedding_dataset.tolist(),
-        n_results=5,
-        where={"category": "技术文档"}
-    )
-
-    print(f"查询结果数量: {len(results['ids'][0])}")
+    # results = dao.query(
+    #     query_embedding=embedding_dataset.tolist(),
+    #     n_results=5,
+    #     where={"category": "技术文档"}
+    # )
+    #
+    # print(f"查询结果数量: {len(results['ids'][0])}")
     # for i, doc_id in enumerate(results['ids'][0]):
     #     print(f"文档 {i+1}: {results['metadatas'][0][i]}")
     #     print(f"  距离: {results['distances'][0][i]}")
@@ -467,3 +533,7 @@ if __name__ == '__main__':
     # # 统计文档数量
     # count = dao.count(where={"category": "技术文档"})
     # print(f"技术文档总数: {count}")
+
+    ## 根据上下文 查询结果数量
+    result = dao.get_by_context_ids(context_id)
+    print(f"文档信息: {result}")

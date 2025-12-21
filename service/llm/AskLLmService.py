@@ -16,10 +16,24 @@ class AskLLM:
             torch_dtype=torch.bfloat16
         )
 
-    def chat(self, text):
-        messages = text
+    def chat(self, messages):
+        """
+        非流式聊天方法
+
+        Args:
+            messages: 消息列表，格式为 [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]
+                     或者单个字符串（为了向后兼容）
+
+        Returns:
+            生成的回复文本
+        """
+        # 如果传入的是字符串，转换为消息列表格式
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
+
         print("=" + "打印请求参数" + "=" * 20)
-        print(f"{text}")
+        print(f"{messages}")
+
         text = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -37,7 +51,7 @@ class AskLLM:
 
     def chat_stream(
             self,
-            text: str,
+            messages,
             max_new_tokens: int = 512,
             temperature: float = 0.7,
             top_k: int = 50,
@@ -45,22 +59,21 @@ class AskLLM:
     ) -> Iterator[str]:
         """
         流式输出聊天方法
-        
+
         Args:
-            text: 输入文本
+            messages: 消息列表，格式为 [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]
             max_new_tokens: 最大生成token数
             temperature: 温度参数，控制随机性
             top_k: top-k采样
             top_p: top-p采样
-            
+
         Yields:
             生成的文本片段（逐个token或词）
         """
         print("=" + "打印请求参数（流式）" + "=" * 20)
-        print(f"{text}")
+        print(f"{messages}")
 
-        # 准备输入
-        messages = text
+        # 准备输入 - messages 应该是列表格式
         formatted_text = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -79,11 +92,12 @@ class AskLLM:
         generation_kwargs = {
             **model_inputs,
             "max_new_tokens": max_new_tokens,
-            "temperature": temperature,
-            "top_k": top_k,
-            "top_p": top_p,
+            # ,
+            # "temperature": temperature,
+            # "top_k": top_k,
+            # "top_p": top_p,
             "streamer": streamer,
-            "do_sample": True if temperature > 0 else False
+            # "do_sample": True if temperature > 0 else False
         }
 
         # 在单独线程中运行生成

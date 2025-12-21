@@ -13,7 +13,7 @@ import re
 
 from service.llm.AskLLmService import AskLLM
 from service.rag.EmbeddingUtil import EmbeddingUtil
-from dao.ChromaDAO import ChromaDAO
+from dao.chroma.ChromaDocumentDAO import ChromaDocumentDAO
 
 
 class RetrievalSystem:
@@ -26,7 +26,7 @@ class RetrievalSystem:
             self,
             llm: AskLLM,
             embedding_util: EmbeddingUtil,
-            chroma_dao: ChromaDAO
+            chroma_dao: ChromaDocumentDAO
     ):
         """
         初始化检索系统
@@ -34,7 +34,7 @@ class RetrievalSystem:
         Args:
             llm: LLM 实例，用于查询重写和 HyDE
             embedding_util: 嵌入工具实例，用于向量化
-            chroma_dao: ChromaDAO 实例，用于向量检索
+            chroma_docuement_dao: ChromaDocumentDAO 实例，用于向量检索
         """
         self.llm = llm
         self.embedding_util = embedding_util
@@ -182,7 +182,7 @@ class RetrievalSystem:
         """
         if self._bm25_index is None:
             # 需要先构建索引
-            # 从 ChromaDAO 获取所有文档
+            # 从 ChromaDocumentDAO 获取所有文档
             all_docs = self.chroma_dao.get_all_documents()
             if not all_docs["ids"]:
                 return []
@@ -218,7 +218,7 @@ class RetrievalSystem:
         Reciprocal Rank Fusion (RRF) 算法融合向量检索和 BM25 检索结果
         
         Args:
-            vector_results: 向量检索结果（ChromaDAO.query 返回的格式）
+            vector_results: 向量检索结果（ChromaDocumentDAO.query 返回的格式）
             bm25_results: BM25 检索结果，格式为 [(doc_id, score), ...]
             k: RRF 参数，通常为 60
             
@@ -270,7 +270,7 @@ class RetrievalSystem:
             bm25_weight: BM25 检索权重（0-1），会自动归一化
             
         Returns:
-            融合后的检索结果，格式与 ChromaDAO.query 返回的格式一致
+            融合后的检索结果，格式与 ChromaDocumentDAO.query 返回的格式一致
         """
         # 归一化权重
         total_weight = vector_weight + bm25_weight
@@ -299,7 +299,7 @@ class RetrievalSystem:
                 "documents": [[]]
             }
 
-        # 从 ChromaDAO 获取这些文档的详细信息
+        # 从 ChromaDocumentDAO 获取这些文档的详细信息
         top_doc_ids = [doc_id for doc_id, _ in top_rrf]
 
         # 构建返回结果
@@ -323,7 +323,7 @@ class RetrievalSystem:
                 vector_id_to_distance[doc_id] = vector_results["distances"][0][i] if vector_results.get(
                     "distances") else 1.0
 
-        # 从 ChromaDAO 获取缺失的信息
+        # 从 ChromaDocumentDAO 获取缺失的信息
         all_docs = self.chroma_dao.get_all_documents()
         all_id_to_metadata = {}
         all_id_to_document = {}
@@ -408,7 +408,7 @@ class RetrievalSystem:
                     "documents": [[]]
                 }
 
-            # 从 ChromaDAO 获取文档详情
+            # 从 ChromaDocumentDAO 获取文档详情
             doc_ids = [doc_id for doc_id, _ in bm25_results]
             all_docs = self.chroma_dao.get_all_documents()
 
@@ -459,7 +459,7 @@ if __name__ == '__main__':
     llm = AskLLM(model_path)
     embedding_util = EmbeddingUtil(model_path)
     schema = "test_schema"
-    chroma_dao = ChromaDAO(
+    chroma_document_dao = ChromaDocumentDAO(
         collection_name=schema,
         persist_directory=chroma_save_path
     )
@@ -469,32 +469,34 @@ if __name__ == '__main__':
 
     # 测试查询重写
     original_query = "它怎么用？"
-    rewritten = retrieval_system.query_rewrite(original_query)
-    print(f"原始查询: {original_query}")
-    print(f"改写后: {rewritten}\n")
-
-    # 测试 HyDE
-    print("=" * 50)
-    print("HyDE 检索:")
-    hyde_results = retrieval_system.hyde_search("Python 如何读取文件？", n_results=5)
-    print(f"找到 {len(hyde_results['ids'][0])} 个结果\n")
-
-    # 测试混合检索
-    print("=" * 50)
-    print("混合检索:")
-    hybrid_results = retrieval_system.hybrid_search(
-        "Python 文件操作",
-        n_results=5
-    )
-    print(f"找到 {len(hybrid_results['ids'][0])} 个结果")
+    # rewritten = retrieval_system.query_rewrite(original_query)
+    # print(f"原始查询: {original_query}")
+    # print(f"改写后: {rewritten}\n")
+    #
+    # # 测试 HyDE
+    # print("=" * 50)
+    # print("HyDE 检索:")
+    # hyde_results = retrieval_system.hyde_search("Python 如何读取文件？", n_results=5)
+    # print(f"找到 {len(hyde_results['ids'][0])} 个结果\n")
+    #
+    # # 测试混合检索
+    # print("=" * 50)
+    # print("混合检索:")
+    # hybrid_results = retrieval_system.hybrid_search(
+    #     "Python 文件操作",
+    #     n_results=5
+    # )
+    # print(f"找到 {len(hybrid_results['ids'][0])} 个结果")
 
     # 测试统一接口
     print("=" * 50)
     print("统一检索接口（带查询重写）:")
-    results = retrieval_system.search(
-        query="它怎么用？",
-        method="hybrid",
-        use_query_rewrite=True,
-        n_results=5
-    )
-    print(f"找到 {len(results['ids'][0])} 个结果")
+    # results = retrieval_system.search(
+    #     query="它怎么用？",
+    #     method="hybrid",
+    #     use_query_rewrite=True,
+    #     n_results=5
+    # )
+    # print(f"找到 {len(results['ids'][0])} 个结果")
+    # print(f"结果{results}")
+
