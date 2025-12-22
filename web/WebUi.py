@@ -55,7 +55,6 @@ context_service = SystemUserContextService()
 context_content_service = SystemUserContextContentService()
 model_service = SystemModelService()  # 全局模型服务实例
 
-
 def create_streaming_ai_response(query: str, page: ft.Page, save_callback=None):
     """
     创建并返回流式输出的 AI 回复容器
