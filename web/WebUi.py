@@ -20,6 +20,7 @@ from dao.memory.UserMemory import UserInfoType
 from service.context.SystemUserContextService import SystemUserContextService
 from service.context.SystemUserContextContentService import SystemUserContextContentService
 from service.rag.SystemUserLibraryService import SystemUserLibraryService
+from service.system.SystemModelService import SystemModelService
 import json
 
 model_path = ConfigUtil.load_model_path_from_config(Constant.CONFIG_PATH)
@@ -36,6 +37,7 @@ auth_service = AuthService()
 context_service = SystemUserContextService()
 context_content_service = SystemUserContextContentService()
 library_service = SystemUserLibraryService()  # 全局知识库服务实例
+model_service = SystemModelService()  # 全局模型服务实例
 
 
 def create_streaming_ai_response(query: str, page: ft.Page, save_callback=None):
@@ -398,6 +400,18 @@ def main(page: ft.Page):
     context_list_data.current = []
     sidebar_expanded = ft.Ref[bool]()  # 侧边栏展开状态
     sidebar_expanded.current = False
+
+    # --- 模型状态管理 ---
+    current_model_id = ft.Ref[int]()  # 当前选中的模型ID
+    current_model_id.current = None
+    current_model_name = ft.Ref[str]()  # 当前选中的模型名称
+    current_model_name.current = "默认模型"
+    current_model_path = ft.Ref[str]()  # 当前选中的模型路径
+    current_model_path.current = model_path
+    model_list_data = ft.Ref[list]()  # 模型列表数据
+    model_list_data.current = []
+    model_panel_expanded = ft.Ref[bool]()  # 模型面板展开状态
+    model_panel_expanded.current = False
 
     # --- 2. 定义组件 ---
 
@@ -1128,6 +1142,19 @@ def main(page: ft.Page):
     # 折叠按钮图标引用
     right_panel_toggle_icon = ft.Ref[ft.IconButton]()
 
+    # 当前模型名称显示组件
+    current_model_display_text = ft.Ref[ft.Text]()
+
+    def update_model_display():
+        """更新模型名称显示"""
+        if current_model_display_text.current:
+            current_model_display_text.current.value = current_model_name.current
+            page.update()
+
+    def on_model_display_click(e):
+        """点击模型显示区域，展开模型选择面板"""
+        toggle_model_panel()
+
     def toggle_right_panel(e):
         """切换右侧面板展开/折叠状态"""
         right_panel_expanded.current = not right_panel_expanded.current
@@ -1177,6 +1204,38 @@ def main(page: ft.Page):
             ft.Column(
                 ref=right_panel_content,
                 controls=[
+                    ft.Divider(color=ft.Colors.GREY_800, height=20),
+
+                    # === 当前模型显示区域 ===
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Row([
+                                ft.Icon(ft.Icons.MEMORY, size=18, color=ft.Colors.BLUE_400),
+                                ft.Text("当前模型", size=14, weight="w500", color=ft.Colors.GREY_400),
+                            ], spacing=8),
+                            ft.Container(
+                                content=ft.Row([
+                                    ft.Text(
+                                        ref=current_model_display_text,
+                                        value=current_model_name.current,
+                                        size=15,
+                                        weight="bold",
+                                        color=ft.Colors.WHITE,
+                                    ),
+                                    ft.Icon(ft.Icons.ARROW_FORWARD_IOS, size=14, color=ft.Colors.GREY_500),
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                bgcolor="#2B2D31",
+                                padding=ft.padding.symmetric(horizontal=15, vertical=12),
+                                border_radius=10,
+                                border=ft.border.all(1, ft.Colors.BLUE_400),
+                                on_click=on_model_display_click,
+                                ink=True,
+                                tooltip="点击选择模型",
+                            ),
+                        ], spacing=8),
+                        padding=ft.padding.only(bottom=15),
+                    ),
+
                     ft.Divider(color=ft.Colors.GREY_800, height=20),
 
                     # Temperature 设置
@@ -1506,6 +1565,11 @@ def main(page: ft.Page):
     library_list_data.current = []
     library_panel_expanded = ft.Ref[bool]()
     library_panel_expanded.current = False
+
+    # ==================== 模型管理面板 ====================
+    model_panel_container = ft.Ref[ft.Container]()
+    model_search_field = ft.Ref[ft.TextField]()
+    model_list_view = ft.Ref[ft.ListView]()
 
     def create_library_item(library_data):
         """创建单个知识库列表项"""
@@ -1841,6 +1905,364 @@ def main(page: ft.Page):
         library_panel_expanded.current = False  # 同步状态
         page.update()
 
+    # ==================== 模型管理面板功能 ====================
+
+    def load_models():
+        """加载所有模型列表"""
+        try:
+            models = model_service.query_all_list_by_name("")
+            model_list_data.current = models if models else []
+
+            # 尝试根据当前模型路径匹配模型
+            if model_list_data.current and current_model_path.current:
+                for model in model_list_data.current:
+                    if model.get("path") == current_model_path.current:
+                        current_model_id.current = model.get("id")
+                        current_model_name.current = model.get("name", "默认模型")
+                        update_model_display()
+                        break
+        except Exception as ex:
+            print(f"加载模型列表失败: {ex}")
+            model_list_data.current = []
+
+    def create_model_item(model_data):
+        """创建单个模型列表项"""
+        model_id = model_data.get("id")
+        model_name = model_data.get("name", "未命名模型")
+        model_path_str = model_data.get("path", "")
+        model_type = model_data.get("type", "")
+        model_description = model_data.get("description", "")
+        update_time = model_data.get("update_time", "")
+        is_active = model_id == current_model_id.current
+
+        def on_model_click(e):
+            """点击模型项，选择该模型"""
+            switch_model(model_id)
+
+        return ft.Container(
+            content=ft.Column([
+                # 模型名称和选中标记
+                ft.Row([
+                    ft.Icon(
+                        ft.Icons.CHECK_CIRCLE,
+                        size=20,
+                        color=ft.Colors.BLUE_400 if is_active else ft.Colors.TRANSPARENT,
+                    ),
+                    ft.Text(
+                        model_name,
+                        size=15,
+                        weight="bold",
+                        color=ft.Colors.WHITE if is_active else ft.Colors.GREY_300,
+                    ),
+                ], spacing=8),
+                # 模型类型
+                ft.Row([
+                    ft.Icon(ft.Icons.CATEGORY, size=14, color=ft.Colors.GREY_500),
+                    ft.Text(f"类型: {model_type}", size=11, color=ft.Colors.GREY_500),
+                ], spacing=5),
+                # 模型路径
+                ft.Row([
+                    ft.Icon(ft.Icons.FOLDER_OUTLINED, size=14, color=ft.Colors.GREY_500),
+                    ft.Text(
+                        f"路径: {model_path_str[:40]}..." if len(model_path_str) > 40 else f"路径: {model_path_str}",
+                        size=11,
+                        color=ft.Colors.GREY_500,
+                    ),
+                ], spacing=5),
+                # 模型描述
+                ft.Text(
+                    model_description[:60] + "..." if len(model_description) > 60 else model_description,
+                    size=11,
+                    color=ft.Colors.GREY_400,
+                ),
+                # 更新时间
+                ft.Text(
+                    f"更新: {update_time[:16] if update_time else ''}",
+                    size=10,
+                    color=ft.Colors.GREY_600,
+                ),
+            ], spacing=6),
+            bgcolor=ft.Colors.BLUE_700 if is_active else "#2B2D31",
+            padding=ft.padding.symmetric(horizontal=15, vertical=12),
+            border_radius=10,
+            on_click=on_model_click,
+            border=ft.border.only(left=ft.BorderSide(4, ft.Colors.BLUE_400)) if is_active else None,
+            ink=True,
+        )
+
+    def switch_model(model_id: int):
+        """切换到指定的模型"""
+        global askLLm, askToolLLm
+
+        try:
+            # 查找模型数据
+            selected_model = None
+            for model in model_list_data.current:
+                if model.get("id") == model_id:
+                    selected_model = model
+                    break
+
+            if not selected_model:
+                print(f"模型 {model_id} 不存在")
+                return
+
+            # 更新当前模型信息
+            current_model_id.current = model_id
+            current_model_name.current = selected_model.get("name", "默认模型")
+            current_model_path.current = selected_model.get("path", "")
+
+            # 重新初始化 LLM（立即应用）
+            new_askLLm, new_askToolLLm = register_llm_with_path(current_model_path.current)
+            askLLm = new_askLLm
+            askToolLLm = new_askToolLLm
+
+            # 更新UI显示
+            update_model_display()
+            update_model_list_ui()
+
+            # 关闭模型面板
+            hide_model_panel()
+
+            print(f"已切换到模型: {current_model_name.current}")
+        except Exception as ex:
+            print(f"切换模型失败: {ex}")
+
+    def register_llm_with_path(model_path: str):
+        """使用指定路径注册LLM"""
+        askLLm = AskLLmService.AskLLM(model_path)
+        askToolLLm = AskToolLLMService.AskToolLLM(model_path)
+        return askLLm, askToolLLm
+
+    def on_model_search_change(e):
+        """模型搜索框内容变化"""
+        keyword = model_search_field.current.value
+        try:
+            if keyword:
+                filtered_models = model_service.query_all_list_by_name(keyword)
+            else:
+                filtered_models = model_service.query_all_list_by_name("")
+
+            model_list_data.current = filtered_models if filtered_models else []
+
+            # 更新列表显示
+            update_model_list_ui()
+        except Exception as ex:
+            print(f"搜索模型失败: {ex}")
+
+    def update_model_list_ui():
+        """更新模型列表UI"""
+        if not model_list_view.current:
+            return
+
+        model_list_view.current.controls.clear()
+        for model in model_list_data.current:
+            model_list_view.current.controls.append(create_model_item(model))
+        page.update()
+
+    def show_create_model_dialog():
+        """显示新建模型对话框"""
+        name_field = ft.TextField(
+            label="模型名称",
+            hint_text="请输入模型名称",
+            border_color=ft.Colors.BLUE_400,
+            focused_border_color=ft.Colors.BLUE_600,
+            border_radius=10,
+            autofocus=True,
+        )
+
+        path_field = ft.TextField(
+            label="模型路径",
+            hint_text="请输入模型文件路径",
+            border_color=ft.Colors.BLUE_400,
+            focused_border_color=ft.Colors.BLUE_600,
+            border_radius=10,
+        )
+
+        type_field = ft.TextField(
+            label="模型类型",
+            hint_text="例如: LLM, Embedding 等",
+            border_color=ft.Colors.BLUE_400,
+            focused_border_color=ft.Colors.BLUE_600,
+            border_radius=10,
+        )
+
+        description_field = ft.TextField(
+            label="模型描述",
+            hint_text="请输入模型描述",
+            border_color=ft.Colors.BLUE_400,
+            focused_border_color=ft.Colors.BLUE_600,
+            border_radius=10,
+            multiline=True,
+            min_lines=3,
+            max_lines=5,
+        )
+
+        def handle_create(e):
+            name = name_field.value
+            path = path_field.value
+            model_type = type_field.value
+            description = description_field.value
+
+            if not name or not name.strip():
+                name_field.error_text = "模型名称不能为空"
+                page.update()
+                return
+
+            if not path or not path.strip():
+                path_field.error_text = "模型路径不能为空"
+                page.update()
+                return
+
+            if not model_type or not model_type.strip():
+                type_field.error_text = "模型类型不能为空"
+                page.update()
+                return
+
+            if not description or not description.strip():
+                description_field.error_text = "模型描述不能为空"
+                page.update()
+                return
+
+            try:
+                from dao.sqlite.system.SystemModelMapper import SystemModelType
+
+                new_model: SystemModelType = {
+                    "name": name.strip(),
+                    "path": path.strip(),
+                    "type": model_type.strip(),
+                    "description": description.strip(),
+                }
+
+                model_service.create_model(new_model)
+
+                # 刷新模型列表
+                load_models()
+                update_model_list_ui()
+
+                dialog.open = False
+                page.update()
+            except Exception as ex:
+                print(f"创建模型失败: {ex}")
+                description_field.error_text = f"创建失败: {str(ex)}"
+                page.update()
+
+        def handle_cancel(e):
+            dialog.open = False
+            page.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Row([
+                ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, color=ft.Colors.BLUE_400, size=24),
+                ft.Text("新建模型", size=18, weight="bold"),
+            ], spacing=10),
+            content=ft.Container(
+                content=ft.Column([
+                    name_field,
+                    path_field,
+                    type_field,
+                    description_field,
+                ], spacing=15, tight=True),
+                width=500,
+                height=400,
+            ),
+            actions=[
+                ft.TextButton("取消", on_click=handle_cancel),
+                ft.ElevatedButton("创建", on_click=handle_create, bgcolor=ft.Colors.BLUE_500),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+            bgcolor="#1E1E1E",
+        )
+
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
+
+    def toggle_model_panel():
+        """切换模型面板显示"""
+        model_panel_expanded.current = not model_panel_expanded.current
+        if model_panel_expanded.current:
+            show_model_panel()
+        else:
+            hide_model_panel()
+
+    def show_model_panel():
+        """显示模型面板"""
+        # 隐藏其他面板（互斥）
+        hide_context_list_panel()
+        hide_library_panel()
+
+        model_panel_container.current.width = 350
+        model_panel_container.current.visible = True
+        model_panel_expanded.current = True
+
+        load_models()
+        update_model_list_ui()
+        page.update()
+
+    def hide_model_panel():
+        """隐藏模型面板"""
+        model_panel_container.current.width = 0
+        model_panel_container.current.visible = False
+        model_panel_expanded.current = False
+        page.update()
+
+    # 创建模型管理面板
+    model_panel = ft.Container(
+        ref=model_panel_container,
+        width=0,
+        bgcolor="#1A1A1B",
+        padding=ft.padding.symmetric(horizontal=15, vertical=20),
+        content=ft.Column([
+            # 标题
+            ft.Row([
+                ft.Icon(ft.Icons.MEMORY, size=22, color=ft.Colors.BLUE_400),
+                ft.Text("模型管理", size=18, weight="bold", color=ft.Colors.WHITE),
+            ], spacing=10),
+
+            ft.Divider(color=ft.Colors.GREY_800, height=20),
+
+            # 新建模型按钮
+            ft.ElevatedButton(
+                "新建模型",
+                icon=ft.Icons.ADD,
+                bgcolor=ft.Colors.BLUE_500,
+                color=ft.Colors.WHITE,
+                on_click=lambda e: show_create_model_dialog(),
+                width=320,
+            ),
+
+            ft.Container(height=10),
+
+            # 搜索框
+            ft.TextField(
+                ref=model_search_field,
+                hint_text="搜索模型...",
+                prefix_icon=ft.Icons.SEARCH,
+                border_color=ft.Colors.BLUE_400,
+                focused_border_color=ft.Colors.BLUE_600,
+                border_radius=10,
+                text_size=14,
+                height=45,
+                on_change=on_model_search_change,
+            ),
+
+            ft.Container(height=10),
+
+            # 模型列表
+            ft.Container(
+                content=ft.ListView(
+                    ref=model_list_view,
+                    spacing=10,
+                    expand=True,
+                ),
+                expand=True,
+            ),
+        ], spacing=10),
+        visible=False,
+        animate=ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT),
+    )
+
     # 布局组装
     layout = ft.Row(
         controls=[
@@ -1849,6 +2271,8 @@ def main(page: ft.Page):
             context_panel,
             ft.VerticalDivider(width=1, color="#2D2D2D"),
             library_panel,
+            ft.VerticalDivider(width=1, color="#2D2D2D"),
+            model_panel,
             ft.VerticalDivider(width=1, color="#2D2D2D"),
             center_layout,
             ft.VerticalDivider(width=1, color="#2D2D2D"),

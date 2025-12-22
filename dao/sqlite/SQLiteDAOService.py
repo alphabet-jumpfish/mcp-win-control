@@ -290,15 +290,23 @@ class SQLiteDAO:
                 if where:
                     conditions = []
                     for col, value in where.items():
-                        operator, val = value
-                        if operator.upper() == "IN":
-                            # 特殊处理IN操作符
-                            placeholders = ",".join(["?" for _ in val])
-                            conditions.append(f"{col} IN ({placeholders})")
-                            params.extend(val)  # 注意这里是extend而不是append
+                        # 支持两种格式：
+                        # 1. 简单等值查询：{"column": value}
+                        # 2. 带操作符的查询：{"column": (operator, value)}
+                        if isinstance(value, tuple) and len(value) == 2:
+                            operator, val = value
+                            if operator.upper() == "IN":
+                                # 特殊处理IN操作符
+                                placeholders = ",".join(["?" for _ in val])
+                                conditions.append(f"{col} IN ({placeholders})")
+                                params.extend(val)  # 注意这里是extend而不是append
+                            else:
+                                conditions.append(f"{col} {operator} ?")
+                                params.append(val)
                         else:
-                            conditions.append(f"{col} {operator} ?")
-                            params.append(val)
+                            # 简单等值查询
+                            conditions.append(f"{col} = ?")
+                            params.append(value)
                     sql += " WHERE " + " AND ".join(conditions)
                 
                 # 添加 ORDER BY 子句
