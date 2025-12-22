@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import flet as ft
 import asyncio
 import sys
@@ -21,27 +23,33 @@ from service.context.SystemUserContextService import SystemUserContextService
 from service.context.SystemUserContextContentService import SystemUserContextContentService
 from service.rag.SystemUserLibraryService import SystemUserLibraryService
 from service.system.SystemModelService import SystemModelService
+from service.system.SystemModelService import SystemModelType
 import json
 
 model_path = ConfigUtil.load_model_path_from_config(Constant.CONFIG_PATH)
+local_load_system_model: SystemModelType = {
+    "name": "Qwen3本地配置模型",
+    "path": model_path,
+    "type": "local",
+    "description": "本地配置文件加载",
+    #"create_time": datetime.now(),
+    #"update_time": datetime.now(),
+    "deleted": 0
+}
+
 
 def register_llm(model_path_param=None):
     """
     注册 LLM 服务
-    Args:
-        model_path_param: 模型路径，若为 None 则使用全局 model_path
     """
-    global model_path
-    path_to_use = model_path_param if model_path_param else model_path
-    if model_path_param:
-        model_path = model_path_param  # 更新全局 model_path
-    askLLm = AskLLmService.AskLLM(path_to_use)
-    askToolLLm = AskToolLLMService.AskToolLLM(path_to_use)
+    askLLm = AskLLmService.AskLLM(model_path_param)
+    askToolLLm = AskToolLLMService.AskToolLLM(model_path_param)
     return askLLm, askToolLLm
 
+
 # 实例化
-library_service = SystemUserLibraryService(model_path)  # 全局知识库服务实例
-askLLm, askToolLLm = register_llm()
+library_service = SystemUserLibraryService(local_load_system_model.get("path"))  # 全局知识库服务实例
+askLLm, askToolLLm = register_llm(local_load_system_model.get("path"))
 auth_service = AuthService()
 context_service = SystemUserContextService()
 context_content_service = SystemUserContextContentService()
@@ -691,7 +699,8 @@ def main(page: ft.Page):
                             border_radius=20,
                             padding=8,
                         ),
-                        ft.Text(current_model_name.current or "AI助手", weight="bold", size=15, color=ft.Colors.BLUE_300),
+                        ft.Text(current_model_name.current or "AI助手", weight="bold", size=15,
+                                color=ft.Colors.BLUE_300),
                     ], spacing=10),
                     ft.Markdown(
                         f"你好！我是 {current_model_name.current or 'AI助手'}。今天有什么我可以帮你的吗？\n\n你可以尝试问我：\n- 写一段 Python 代码\n- 解释量子物理\n- 生成创意文案",
@@ -1895,6 +1904,7 @@ def main(page: ft.Page):
         """加载所有模型列表"""
         try:
             models = model_service.query_all_list_by_name("")
+            models.append(local_load_system_model)
             model_list_data.current = models if models else []
 
             # 尝试根据当前模型路径匹配模型
@@ -2277,13 +2287,14 @@ def main(page: ft.Page):
     # 尝试从数据库加载模型并匹配当前模型路径
     try:
         models = model_service.query_all_list_by_name("")
+        models.append(local_load_system_model)
         if models:
             model_list_data.current = models
             # 根据当前模型路径匹配模型
             for model in models:
                 if model.get("path") == current_model_path.current:
                     current_model_id.current = model.get("id")
-                    current_model_name.current = model.get("name", "默认模型")
+                    current_model_name.current = model.get("name")
                     break
 
         # 更新UI显示
