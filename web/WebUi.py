@@ -694,17 +694,19 @@ def main(page: ft.Page):
         """更新侧边栏登录按钮的显示"""
         if current_user.current:
             # 已登录：显示用户头像和用户名
-            sidebar.destinations[3] = ft.NavigationRailDestination(
+            sidebar.destinations[4] = ft.NavigationRailDestination(
                 icon=ft.Icons.ACCOUNT_CIRCLE,
                 selected_icon=ft.Icons.ACCOUNT_CIRCLE,
                 label=current_user.current.get("username", "用户"),
+                padding=ft.padding.symmetric(vertical=8),
             )
         else:
             # 未登录：显示登录按钮
-            sidebar.destinations[3] = ft.NavigationRailDestination(
+            sidebar.destinations[4] = ft.NavigationRailDestination(
                 icon=ft.Icons.LOGIN,
                 selected_icon=ft.Icons.LOGIN,
                 label="登录",
+                padding=ft.padding.symmetric(vertical=8),
             )
         page.update()
 
@@ -719,10 +721,20 @@ def main(page: ft.Page):
                 create_new_context()
         elif index == 1:  # Playground 按钮
             if current_user.current:
-                toggle_context_list()
+                # 如果 Playground 面板已经展开，则缩回；否则展开
+                if sidebar_expanded.current:
+                    hide_context_list_panel()
+                    sidebar_expanded.current = False
+                else:
+                    show_context_list_panel()
+                    sidebar_expanded.current = True
         elif index == 2:  # Library 按钮（知识库）
             if current_user.current:
-                toggle_library_panel()
+                # 如果 Library 面板已经展开，则缩回；否则展开
+                if library_panel_expanded.current:
+                    hide_library_panel()
+                else:
+                    show_library_panel()
             else:
                 # 未登录：显示登录对话框
                 show_login_dialog(page, on_login_success=lambda user: handle_login_success(user))
@@ -1475,6 +1487,7 @@ def main(page: ft.Page):
         hide_library_panel()
         context_list_container.current.width = 300
         context_list_container.current.visible = True
+        sidebar_expanded.current = True  # 同步状态
         update_context_list_ui()
         page.update()
 
@@ -1482,6 +1495,7 @@ def main(page: ft.Page):
         """隐藏上下文列表面板"""
         context_list_container.current.width = 0
         context_list_container.current.visible = False
+        sidebar_expanded.current = False  # 同步状态
         page.update()
 
     # ==================== 知识库面板 ====================
@@ -1815,6 +1829,7 @@ def main(page: ft.Page):
         hide_context_list_panel()
         library_panel_container.current.width = 300
         library_panel_container.current.visible = True
+        library_panel_expanded.current = True  # 同步状态
         load_user_libraries()
         update_library_list_ui()
         page.update()
@@ -1823,7 +1838,7 @@ def main(page: ft.Page):
         """隐藏知识库面板"""
         library_panel_container.current.width = 0
         library_panel_container.current.visible = False
-        library_panel_expanded.current = False
+        library_panel_expanded.current = False  # 同步状态
         page.update()
 
     # 布局组装
