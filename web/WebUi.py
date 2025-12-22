@@ -25,15 +25,23 @@ import json
 
 model_path = ConfigUtil.load_model_path_from_config(Constant.CONFIG_PATH)
 
-
-def register_llm(model_path):
-    askLLm = AskLLmService.AskLLM(model_path)
-    askToolLLm = AskToolLLMService.AskToolLLM(model_path)
+def register_llm(model_path_param=None):
+    """
+    注册 LLM 服务
+    Args:
+        model_path_param: 模型路径，若为 None 则使用全局 model_path
+    """
+    global model_path
+    path_to_use = model_path_param if model_path_param else model_path
+    if model_path_param:
+        model_path = model_path_param  # 更新全局 model_path
+    askLLm = AskLLmService.AskLLM(path_to_use)
+    askToolLLm = AskToolLLMService.AskToolLLM(path_to_use)
     return askLLm, askToolLLm
 
 # 实例化
 library_service = SystemUserLibraryService(model_path)  # 全局知识库服务实例
-askLLm, askToolLLm = register_llm(model_path)
+askLLm, askToolLLm = register_llm()
 auth_service = AuthService()
 context_service = SystemUserContextService()
 context_content_service = SystemUserContextContentService()
@@ -418,6 +426,22 @@ def main(page: ft.Page):
     # 当前对话名称显示组件
     context_name_text = ft.Ref[ft.Text]()
 
+    # 模型名称显示组件
+    current_model_display_text = ft.Ref[ft.Text]()  # 右侧面板的模型显示
+    center_model_display_text = ft.Ref[ft.Text]()  # 中间顶部的模型显示
+
+    def update_model_display():
+        """更新右侧模型名称显示"""
+        if current_model_display_text.current:
+            current_model_display_text.current.value = current_model_name.current
+            page.update()
+
+    def update_center_model_display():
+        """更新中间模型名称显示"""
+        if center_model_display_text.current:
+            center_model_display_text.current.value = current_model_name.current
+            page.update()
+
     def update_context_name_display():
         """更新对话名称显示"""
         if context_name_text.current:
@@ -667,10 +691,10 @@ def main(page: ft.Page):
                             border_radius=20,
                             padding=8,
                         ),
-                        ft.Text("Gemini 1.5 Pro", weight="bold", size=15, color=ft.Colors.BLUE_300),
+                        ft.Text(current_model_name.current or "AI助手", weight="bold", size=15, color=ft.Colors.BLUE_300),
                     ], spacing=10),
                     ft.Markdown(
-                        "你好！我是 Gemini。今天有什么我可以帮你的吗？\n\n你可以尝试问我：\n- 写一段 Python 代码\n- 解释量子物理\n- 生成创意文案",
+                        f"你好！我是 {current_model_name.current or 'AI助手'}。今天有什么我可以帮你的吗？\n\n你可以尝试问我：\n- 写一段 Python 代码\n- 解释量子物理\n- 生成创意文案",
                         selectable=True,
                         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB
                     ),
@@ -859,37 +883,7 @@ def main(page: ft.Page):
         auto_scroll=True,
     )
 
-    # 模拟 AI 欢迎语
-    chat_history.controls.append(
-        ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.SMART_TOY, size=20, color=ft.Colors.BLUE_400),
-                        bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.BLUE_400),
-                        border_radius=20,
-                        padding=8,
-                    ),
-                    ft.Text("Gemini 1.5 Pro", weight="bold", size=15, color=ft.Colors.BLUE_300),
-                ], spacing=10),
-                ft.Markdown(
-                    "你好！我是 Gemini。今天有什么我可以帮你的吗？\n\n你可以尝试问我：\n- 写一段 Python 代码\n- 解释量子物理\n- 生成创意文案",
-                    selectable=True,
-                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB
-                ),
-            ], spacing=12),
-            bgcolor="#1E1E1E",
-            padding=20,
-            border_radius=16,
-            border=ft.border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.BLUE_400)),
-            shadow=ft.BoxShadow(
-                spread_radius=0,
-                blur_radius=10,
-                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-                offset=ft.Offset(0, 2),
-            ),
-        )
-    )
+    # 欢迎语将在模型初始化后添加
 
     # 中间：底部输入框
     user_input = ft.TextField(
@@ -1091,18 +1085,12 @@ def main(page: ft.Page):
                         ft.Container(width=10),
                         ft.Icon(ft.Icons.PSYCHOLOGY, size=20, color=ft.Colors.BLUE_400),
                         ft.Text("Model:", size=15, color=ft.Colors.GREY_400, weight="w500"),
-                        ft.Dropdown(
-                            options=[
-                                ft.dropdown.Option("Gemini 1.5 Pro"),
-                                ft.dropdown.Option("Gemini 1.5 Flash")
-                            ],
-                            value="Gemini 1.5 Pro",
-                            border_color=ft.Colors.BLUE_400,
-                            focused_border_color=ft.Colors.BLUE_600,
-                            border_radius=10,
-                            text_size=14,
-                            width=180,
-                            bgcolor="#1E1E1E",
+                        ft.Text(
+                            ref=center_model_display_text,
+                            value=current_model_name.current,
+                            size=14,
+                            weight="bold",
+                            color=ft.Colors.BLUE_300,
                         ),
                         ft.Container(width=20),
                         ft.Icon(ft.Icons.TUNE, size=20, color=ft.Colors.BLUE_400),
@@ -1141,15 +1129,6 @@ def main(page: ft.Page):
 
     # 折叠按钮图标引用
     right_panel_toggle_icon = ft.Ref[ft.IconButton]()
-
-    # 当前模型名称显示组件
-    current_model_display_text = ft.Ref[ft.Text]()
-
-    def update_model_display():
-        """更新模型名称显示"""
-        if current_model_display_text.current:
-            current_model_display_text.current.value = current_model_name.current
-            page.update()
 
     def on_model_display_click(e):
         """点击模型显示区域，展开模型选择面板"""
@@ -1997,7 +1976,7 @@ def main(page: ft.Page):
 
     def switch_model(model_id: int):
         """切换到指定的模型"""
-        global askLLm, askToolLLm
+        global askLLm, askToolLLm, library_service
 
         try:
             # 查找模型数据
@@ -2017,26 +1996,31 @@ def main(page: ft.Page):
             current_model_path.current = selected_model.get("path", "")
 
             # 重新初始化 LLM（立即应用）
-            new_askLLm, new_askToolLLm = register_llm_with_path(current_model_path.current)
+            new_askLLm, new_askToolLLm = register_llm(current_model_path.current)
             askLLm = new_askLLm
             askToolLLm = new_askToolLLm
+
+            # 重新初始化知识库服务
+            library_service = SystemUserLibraryService(current_model_path.current)
 
             # 更新UI显示
             update_model_display()
             update_model_list_ui()
+            update_center_model_display()  # 更新中间模型显示
+
+            # 清空聊天历史并重新添加欢迎语
+            clear_chat_history()
 
             # 关闭模型面板
             hide_model_panel()
 
-            print(f"已切换到模型: {current_model_name.current}")
+            print(f"已切换到模型: {current_model_name.current} (路径: {current_model_path.current})")
         except Exception as ex:
             print(f"切换模型失败: {ex}")
 
     def register_llm_with_path(model_path: str):
-        """使用指定路径注册LLM"""
-        askLLm = AskLLmService.AskLLM(model_path)
-        askToolLLm = AskToolLLMService.AskToolLLM(model_path)
-        return askLLm, askToolLLm
+        """使用指定路径注册LLM（已废弃，使用 register_llm 代替）"""
+        return register_llm(model_path)
 
     def on_model_search_change(e):
         """模型搜索框内容变化"""
@@ -2277,17 +2261,69 @@ def main(page: ft.Page):
             ft.VerticalDivider(width=1, color="#2D2D2D"),
             library_panel,
             ft.VerticalDivider(width=1, color="#2D2D2D"),
-            model_panel,
-            ft.VerticalDivider(width=1, color="#2D2D2D"),
             center_layout,
             ft.VerticalDivider(width=1, color="#2D2D2D"),
             right_panel,
+            ft.VerticalDivider(width=1, color="#2D2D2D"),
+            model_panel,
         ],
         expand=True,
         spacing=0
     )
 
     page.add(layout)
+
+    # 初始化模型显示
+    # 尝试从数据库加载模型并匹配当前模型路径
+    try:
+        models = model_service.query_all_list_by_name("")
+        if models:
+            model_list_data.current = models
+            # 根据当前模型路径匹配模型
+            for model in models:
+                if model.get("path") == current_model_path.current:
+                    current_model_id.current = model.get("id")
+                    current_model_name.current = model.get("name", "默认模型")
+                    break
+
+        # 更新UI显示
+        update_model_display()
+        update_center_model_display()
+    except Exception as ex:
+        print(f"初始化模型显示失败: {ex}")
+
+    # 添加欢迎语（在模型名称初始化后）
+    chat_history.controls.append(
+        ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.SMART_TOY, size=20, color=ft.Colors.BLUE_400),
+                        bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.BLUE_400),
+                        border_radius=20,
+                        padding=8,
+                    ),
+                    ft.Text(current_model_name.current or "AI助手", weight="bold", size=15, color=ft.Colors.BLUE_300),
+                ], spacing=10),
+                ft.Markdown(
+                    f"你好！我是 {current_model_name.current or 'AI助手'}。今天有什么我可以帮你的吗？\n\n你可以尝试问我：\n- 写一段 Python 代码\n- 解释量子物理\n- 生成创意文案",
+                    selectable=True,
+                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB
+                ),
+            ], spacing=12),
+            bgcolor="#1E1E1E",
+            padding=20,
+            border_radius=16,
+            border=ft.border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.BLUE_400)),
+            shadow=ft.BoxShadow(
+                spread_radius=0,
+                blur_radius=10,
+                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+                offset=ft.Offset(0, 2),
+            ),
+        )
+    )
+    page.update()
 
 
 if __name__ == "__main__":
