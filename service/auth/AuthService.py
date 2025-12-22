@@ -52,7 +52,8 @@ class AuthService:
         current_user = user_memory.get_current_user()
         return current_user
 
-    def logout(self):
+    @staticmethod
+    def logout():
         current_user = user_memory.get_current_user()
         if current_user:
             print("    用户登出（清空内容）")
@@ -62,7 +63,8 @@ class AuthService:
             print(f"   登录时间: {current_user.get('login_time')}")
         user_memory.logout()
 
-    def get_current_user(self) -> Optional[UserInfoType]:
+    @staticmethod
+    def get_current_user() -> Optional[UserInfoType]:
         """
         获取当前登录用户信息
         Returns:

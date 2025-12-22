@@ -1,6 +1,7 @@
 from dao.sqlite.context.SystemUserContextMapper import SystemUserContextMapper
 from dao.sqlite.context.SystemUserContextContentMapper import SystemUserContextContentMapper
 from dao.sqlite.system.SystemUserMapper import SystemUserMapper
+from dao.sqlite.system.SystemModelMapper import SystemModelMapper
 from dao.sqlite.rag.SystemUserLibraryMapper import SystemUserLibraryMapper
 
 
@@ -10,6 +11,7 @@ class EnvDAO:
         self.system_user_context_mapper = SystemUserContextMapper()
         self.system_user_context_content_mapper = SystemUserContextContentMapper()
         self.system_user_library = SystemUserLibraryMapper()
+        self.system_user_mapper = SystemModelMapper()
         pass
 
     def create_env(self):
@@ -18,6 +20,7 @@ class EnvDAO:
         self.system_user_context_mapper.ddl_create_table()
         self.system_user_context_content_mapper.ddl_create_table()
         self.system_user_library.ddl_create_table()
+        self.system_user_mapper.ddl_create_table()
 
 
 if __name__ == '__main__':
