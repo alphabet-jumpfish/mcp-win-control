@@ -22,7 +22,7 @@ class SystemUserLibraryService:
     知识库服务
     """
 
-    def __init__(self):
+    def __init__(self, model_path):
         self.system_user_library_mapper = SystemUserLibraryMapper()
         # 初始化组件
         chroma_save_path = ConfigUtil.load_chroma_save_path_from_config(Constant.CONFIG_PATH)
@@ -31,7 +31,7 @@ class SystemUserLibraryService:
             collection_name=schema,
             persist_directory=chroma_save_path
         )
-        self.model_path = ConfigUtil.load_model_path_from_config(Constant.CONFIG_PATH)
+        self.model_path = model_path
         # chunk分块
         self.chunker = DocumentChunker(self.model_path)
         self.embedding_util = EmbeddingUtil(self.model_path)

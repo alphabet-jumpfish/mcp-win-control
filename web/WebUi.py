@@ -25,18 +25,18 @@ import json
 
 model_path = ConfigUtil.load_model_path_from_config(Constant.CONFIG_PATH)
 
-def register_llm():
+
+def register_llm(model_path):
     askLLm = AskLLmService.AskLLM(model_path)
     askToolLLm = AskToolLLMService.AskToolLLM(model_path)
     return askLLm, askToolLLm
 
-
 # 实例化
-askLLm, askToolLLm = register_llm()
+library_service = SystemUserLibraryService(model_path)  # 全局知识库服务实例
+askLLm, askToolLLm = register_llm(model_path)
 auth_service = AuthService()
 context_service = SystemUserContextService()
 context_content_service = SystemUserContextContentService()
-library_service = SystemUserLibraryService()  # 全局知识库服务实例
 model_service = SystemModelService()  # 全局模型服务实例
 
 
@@ -1359,7 +1359,8 @@ def main(page: ft.Page):
             content=ft.Row([
                 ft.Container(
                     content=ft.Column([
-                        ft.Text(context_name, size=14, weight="bold", color=ft.Colors.WHITE if is_active else ft.Colors.GREY_300),
+                        ft.Text(context_name, size=14, weight="bold",
+                                color=ft.Colors.WHITE if is_active else ft.Colors.GREY_300),
                         ft.Text(update_time[:16] if update_time else "", size=11, color=ft.Colors.GREY_500),
                     ], spacing=4),
                     expand=True,
@@ -1434,6 +1435,7 @@ def main(page: ft.Page):
 
     def show_delete_confirm_dialog(context_id, context_name):
         """显示删除确认对话框"""
+
         def handle_delete(e):
             success = context_service.delete_context(context_id)
             if success:
@@ -1719,7 +1721,8 @@ def main(page: ft.Page):
                 ], spacing=10),
                 content=ft.Container(
                     content=ft.Column([
-                        ft.Text(f"创建时间: {create_time[:16] if create_time else ''}", size=12, color=ft.Colors.GREY_400),
+                        ft.Text(f"创建时间: {create_time[:16] if create_time else ''}", size=12,
+                                color=ft.Colors.GREY_400),
                         ft.Divider(color=ft.Colors.GREY_800, height=20),
                         ft.Container(
                             content=ft.Markdown(
@@ -1749,6 +1752,7 @@ def main(page: ft.Page):
 
     def show_library_delete_confirm_dialog(library_id, library_name):
         """显示删除知识库确认对话框"""
+
         def handle_delete(e):
             try:
                 # 使用全局知识库服务实例
@@ -1788,7 +1792,8 @@ def main(page: ft.Page):
         keyword = library_search_field.current.value
         if keyword:
             # 按标题搜索
-            filtered_libraries = [lib for lib in library_list_data.current if keyword.lower() in lib.get("name", "").lower()]
+            filtered_libraries = [lib for lib in library_list_data.current if
+                                  keyword.lower() in lib.get("name", "").lower()]
         else:
             filtered_libraries = library_list_data.current
 
