@@ -765,7 +765,11 @@ def main(page: ft.Page):
         if index == 0:  # New Chat 按钮
             if current_user.current:
                 create_new_context()
+            else:
+                # 未登录：显示登录对话框
+                show_login_dialog(page, on_login_success=lambda user: handle_login_success(user))
         elif index == 1:  # Playground 按钮
+            # 限制二：检查用户是否已登录
             if current_user.current:
                 # 如果 Playground 面板已经展开，则缩回；否则展开
                 if sidebar_expanded.current:
@@ -774,6 +778,9 @@ def main(page: ft.Page):
                 else:
                     show_context_list_panel()
                     sidebar_expanded.current = True
+            else:
+                # 未登录：显示登录对话框
+                show_login_dialog(page, on_login_success=lambda user: handle_login_success(user))
         elif index == 2:  # Library 按钮（知识库）
             if current_user.current:
                 # 如果 Library 面板已经展开，则缩回；否则展开
@@ -912,6 +919,12 @@ def main(page: ft.Page):
     )
 
     def send_message(e):
+        # 限制一：检查用户是否已登录
+        if not current_user.current:
+            # 未登录，显示登录对话框
+            show_login_dialog(page, on_login_success=lambda user: handle_login_success(user))
+            return
+
         if not user_input.value:
             return
 
@@ -2059,8 +2072,13 @@ def main(page: ft.Page):
             update_model_list_ui()
             update_center_model_display()  # 更新中间模型显示
 
-            # 清空聊天历史并重新添加欢迎语
-            clear_chat_history()
+            # 重新加载当前上下文的历史消息（而不是清空）
+            if current_context_id.current:
+                # 如果有活跃的上下文，重新加载它的历史消息
+                switch_context(current_context_id.current)
+            else:
+                # 如果没有活跃的上下文，只清空并显示欢迎语
+                clear_chat_history()
 
             # 关闭模型面板
             hide_model_panel()
