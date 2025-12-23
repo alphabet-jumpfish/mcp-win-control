@@ -7,8 +7,8 @@ const_system_user_table_columns = {
     "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
     "username": "TEXT NOT NULL",
     "password": "TEXT NOT NULL",
-    "email": "TEXT NOT NULL",
-    "phone": "TEXT NOT NULL",
+    "email": "TEXT",
+    "phone": "TEXT",
     "create_time": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     "update_time": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     "deleted": "INTEGER DEFAULT 0"

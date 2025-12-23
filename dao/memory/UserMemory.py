@@ -33,35 +33,32 @@ class UserMemory:
     def save(self, user_info: UserInfoType) -> None:
         """
         用户登录时持久化用户信息
-        
+
         Args:
-            user_info: 用户信息字典，必须包含 username、email、phone 字段
+            user_info: 用户信息字典，必须包含 username 字段，email 和 phone 为可选字段
                        例如：{"id": 1, "username": "alice", "email": "alice@example.com", "phone": "13800138000"}
-        
+                       或：{"id": 1, "username": "alice", "email": "", "phone": ""}
+
         Raises:
             ValueError: 如果用户信息为空或缺少必填字段
-        
+
         Example:
             # >>> from dao.memory.UserMemory import user_memory
-            # >>> user_memory.login({"id": 1, "username": "alice", "email": "alice@example.com", "phone": "13800138000"})
+            # >>> user_memory.save({"id": 1, "username": "alice", "email": "alice@example.com", "phone": "13800138000"})
         """
         if not user_info:
             raise ValueError("用户信息不能为空")
         # 验证必填字段
         if "username" not in user_info or not user_info.get("username"):
             raise ValueError("用户名不能为空")
-        if "email" not in user_info or not user_info.get("email"):
-            raise ValueError("邮箱不能为空")
-        if "phone" not in user_info or not user_info.get("phone"):
-            raise ValueError("电话不能为空")
 
         # 构建符合 UserInfoType 的用户信息
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         persisted_user_info: UserInfoType = {
             "id": user_info.get("id"),
             "username": user_info["username"],
-            "email": user_info["email"],
-            "phone": user_info["phone"],
+            "email": user_info.get("email", ""),  # 允许为空
+            "phone": user_info.get("phone", ""),  # 允许为空
             "login_time": current_time,
             "last_active_time": current_time
         }

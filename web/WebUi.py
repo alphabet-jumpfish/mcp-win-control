@@ -221,6 +221,13 @@ def show_login_dialog(page: ft.Page, on_login_success):
         dialog.open = False
         page.update()
 
+    def handle_register(e):
+        """跳转到注册界面"""
+        dialog.open = False
+        page.update()
+        # 注册成功后也使用相同的 on_login_success 回调
+        show_register_dialog(page, on_register_success=on_login_success)
+
     # 创建对话框
     dialog = ft.AlertDialog(
         modal=True,
@@ -233,6 +240,17 @@ def show_login_dialog(page: ft.Page, on_login_success):
                 username_field,
                 password_field,
                 error_text,
+                ft.Container(height=5),
+                ft.Row([
+                    ft.Text("还没有账号？", size=13, color=ft.Colors.GREY_400),
+                    ft.TextButton(
+                        "立即注册",
+                        on_click=handle_register,
+                        style=ft.ButtonStyle(
+                            color=ft.Colors.BLUE_400,
+                        ),
+                    ),
+                ], spacing=5),
             ], tight=True, spacing=20),
             width=350,
             padding=ft.padding.only(top=10, bottom=10),
@@ -249,6 +267,186 @@ def show_login_dialog(page: ft.Page, on_login_success):
             ft.ElevatedButton(
                 "登录",
                 on_click=handle_login,
+                bgcolor=ft.Colors.BLUE_500,
+                color=ft.Colors.WHITE,
+                height=45,
+                width=100,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                ),
+            ),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        shape=ft.RoundedRectangleBorder(radius=15),
+        bgcolor="#1E1E1E",
+    )
+
+    page.overlay.append(dialog)
+    dialog.open = True
+    page.update()
+
+
+def show_register_dialog(page: ft.Page, on_register_success):
+    """
+    显示注册对话框
+
+    Args:
+        page: Flet 页面对象
+        on_register_success: 注册成功后的回调函数
+    """
+    # 创建输入框
+    username_field = ft.TextField(
+        label="用户名",
+        hint_text="请输入用户名",
+        prefix_icon=ft.Icons.PERSON,
+        border_color=ft.Colors.BLUE_400,
+        focused_border_color=ft.Colors.BLUE_600,
+        border_radius=12,
+        filled=True,
+        bgcolor="#2B2D31",
+        width=350,
+        height=60,
+    )
+
+    password_field = ft.TextField(
+        label="密码",
+        hint_text="请输入密码",
+        prefix_icon=ft.Icons.LOCK,
+        password=True,
+        can_reveal_password=True,
+        border_color=ft.Colors.BLUE_400,
+        focused_border_color=ft.Colors.BLUE_600,
+        border_radius=12,
+        filled=True,
+        bgcolor="#2B2D31",
+        width=350,
+        height=60,
+    )
+
+    confirm_password_field = ft.TextField(
+        label="确认密码",
+        hint_text="请再次输入密码",
+        prefix_icon=ft.Icons.LOCK_OUTLINE,
+        password=True,
+        can_reveal_password=True,
+        border_color=ft.Colors.BLUE_400,
+        focused_border_color=ft.Colors.BLUE_600,
+        border_radius=12,
+        filled=True,
+        bgcolor="#2B2D31",
+        width=350,
+        height=60,
+    )
+
+    error_text = ft.Text("", color=ft.Colors.RED_400, size=13, weight="w500")
+
+    def handle_register(e):
+        """处理注册逻辑"""
+        username = username_field.value
+        password = password_field.value
+        confirm_password = confirm_password_field.value
+
+        # 验证输入
+        if not username or not password:
+            error_text.value = "用户名和密码不能为空"
+            page.update()
+            return
+
+        if len(username) < 3:
+            error_text.value = "用户名至少需要3个字符"
+            page.update()
+            return
+
+        if len(password) < 6:
+            error_text.value = "密码至少需要6个字符"
+            page.update()
+            return
+
+        if password != confirm_password:
+            error_text.value = "两次输入的密码不一致"
+            page.update()
+            return
+
+        user_info: UserInfoType = {
+            "username": username,
+            "password": password
+        }
+
+        try:
+            # 调用 AuthService 注册
+            print(f"调用 AuthService 注册")
+            current_user = auth_service.register(user_info)
+            print(f"调用 AuthService 注册成功，获取当前用户信息{current_user}")
+
+            # 关闭对话框
+            dialog.open = False
+            page.update()
+
+            # 调用成功回调
+            if on_register_success:
+                on_register_success(current_user)
+
+        except Exception as ex:
+            error_text.value = f"注册失败: {str(ex)}"
+            page.update()
+
+    def handle_cancel(e):
+        """取消注册，返回登录"""
+        dialog.open = False
+        page.update()
+        show_login_dialog(page, on_login_success=lambda user: handle_login_success_from_register(user))
+
+    def handle_login_link(e):
+        """跳转到登录界面"""
+        dialog.open = False
+        page.update()
+        show_login_dialog(page, on_login_success=lambda user: handle_login_success_from_register(user))
+
+    def handle_login_success_from_register(user):
+        """从注册页面返回登录后的成功回调"""
+        if on_register_success:
+            on_register_success(user)
+
+    # 创建对话框
+    dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Row([
+            ft.Icon(ft.Icons.PERSON_ADD, color=ft.Colors.BLUE_400, size=28),
+            ft.Text("用户注册", size=22, weight="bold"),
+        ], spacing=10),
+        content=ft.Container(
+            content=ft.Column([
+                username_field,
+                password_field,
+                confirm_password_field,
+                error_text,
+                ft.Container(height=5),
+                ft.Row([
+                    ft.Text("已有账号？", size=13, color=ft.Colors.GREY_400),
+                    ft.TextButton(
+                        "立即登录",
+                        on_click=handle_login_link,
+                        style=ft.ButtonStyle(
+                            color=ft.Colors.BLUE_400,
+                        ),
+                    ),
+                ], spacing=5),
+            ], tight=True, spacing=20),
+            width=350,
+            padding=ft.padding.only(top=10, bottom=10),
+        ),
+        actions=[
+            ft.TextButton(
+                "取消",
+                on_click=handle_cancel,
+                style=ft.ButtonStyle(
+                    color=ft.Colors.GREY_400,
+                    overlay_color=ft.Colors.with_opacity(0.1, ft.Colors.GREY_400),
+                ),
+            ),
+            ft.ElevatedButton(
+                "注册",
+                on_click=handle_register,
                 bgcolor=ft.Colors.BLUE_500,
                 color=ft.Colors.WHITE,
                 height=45,
