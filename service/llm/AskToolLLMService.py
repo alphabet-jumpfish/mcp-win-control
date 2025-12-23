@@ -197,6 +197,45 @@ class AskToolLLM:
             # 直接使用 LLM 回复，不使用工具
             return self.process(question, stream)
 
+    def cleanup(self):
+        """
+        清理 AskToolLLM 资源，释放内存
+        """
+        print("正在清理 AskToolLLM 资源...")
+        try:
+            # 清理 askLLm
+            if hasattr(self, 'askLLm') and self.askLLm is not None:
+                if hasattr(self.askLLm, 'cleanup'):
+                    self.askLLm.cleanup()
+                del self.askLLm
+                self.askLLm = None
+                print("- askLLm 已释放")
+
+            # 清理 embedding
+            if hasattr(self, 'embedding') and self.embedding is not None:
+                if hasattr(self.embedding, 'cleanup'):
+                    self.embedding.cleanup()
+                del self.embedding
+                self.embedding = None
+                print("- embedding 已释放")
+
+            # 清理其他组件
+            if hasattr(self, 'retrieval_system') and self.retrieval_system is not None:
+                del self.retrieval_system
+                self.retrieval_system = None
+
+            if hasattr(self, 'chroma_document_dao') and self.chroma_document_dao is not None:
+                del self.chroma_document_dao
+                self.chroma_document_dao = None
+
+            if hasattr(self, 'tool_selector') and self.tool_selector is not None:
+                del self.tool_selector
+                self.tool_selector = None
+
+            print("AskToolLLM 资源清理完成")
+        except Exception as e:
+            print(f"清理 AskToolLLM 资源时出错: {e}")
+
 
 if __name__ == "__main__":
     print("开始流程")

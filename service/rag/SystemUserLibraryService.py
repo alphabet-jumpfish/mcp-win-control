@@ -125,3 +125,35 @@ class SystemUserLibraryService:
     def chunk_text(self, text):
         chunks = self.chunker.semantic_chunk(text)
         return chunks
+
+    def cleanup(self):
+        """
+        清理知识库服务资源，释放内存
+        """
+        print("正在清理 SystemUserLibraryService 资源...")
+        try:
+            # 清理 embedding_util
+            if hasattr(self, 'embedding_util') and self.embedding_util is not None:
+                if hasattr(self.embedding_util, 'cleanup'):
+                    self.embedding_util.cleanup()
+                del self.embedding_util
+                self.embedding_util = None
+                print("- embedding_util 已释放")
+
+            # 清理 chunker
+            if hasattr(self, 'chunker') and self.chunker is not None:
+                if hasattr(self.chunker, 'cleanup'):
+                    self.chunker.cleanup()
+                del self.chunker
+                self.chunker = None
+                print("- chunker 已释放")
+
+            # 清理 chroma_document_dao
+            if hasattr(self, 'chroma_document_dao') and self.chroma_document_dao is not None:
+                del self.chroma_document_dao
+                self.chroma_document_dao = None
+                print("- chroma_document_dao 已释放")
+
+            print("SystemUserLibraryService 资源清理完成")
+        except Exception as e:
+            print(f"清理 SystemUserLibraryService 资源时出错: {e}")

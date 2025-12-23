@@ -1986,6 +1986,7 @@ def main(page: ft.Page):
     def switch_model(model_id: int):
         """切换到指定的模型"""
         global askLLm, askToolLLm, library_service
+        import gc
 
         try:
             # 查找模型数据
@@ -2004,7 +2005,48 @@ def main(page: ft.Page):
             current_model_name.current = selected_model.get("name", "默认模型")
             current_model_path.current = selected_model.get("path", "")
 
+            # === 显式释放旧模型资源 ===
+            print("正在释放旧模型资源...")
+
+            # 释放旧的 LLM 实例
+            if askLLm is not None:
+                try:
+                    # 如果 LLM 对象有 cleanup/close 方法，调用它
+                    if hasattr(askLLm, 'cleanup'):
+                        askLLm.cleanup()
+                    elif hasattr(askLLm, 'close'):
+                        askLLm.close()
+                    # 删除引用
+                    del askLLm
+                except Exception as e:
+                    print(f"释放 askLLm 失败: {e}")
+
+            if askToolLLm is not None:
+                try:
+                    if hasattr(askToolLLm, 'cleanup'):
+                        askToolLLm.cleanup()
+                    elif hasattr(askToolLLm, 'close'):
+                        askToolLLm.close()
+                    del askToolLLm
+                except Exception as e:
+                    print(f"释放 askToolLLm 失败: {e}")
+
+            if library_service is not None:
+                try:
+                    if hasattr(library_service, 'cleanup'):
+                        library_service.cleanup()
+                    elif hasattr(library_service, 'close'):
+                        library_service.close()
+                    del library_service
+                except Exception as e:
+                    print(f"释放 library_service 失败: {e}")
+
+            # 强制垃圾回收
+            gc.collect()
+            print("旧模型资源已释放")
+
             # 重新初始化 LLM（立即应用）
+            print(f"正在加载新模型: {current_model_name.current}")
             new_askLLm, new_askToolLLm = register_llm(current_model_path.current)
             askLLm = new_askLLm
             askToolLLm = new_askToolLLm

@@ -113,3 +113,33 @@ class AskLLM:
         generation_thread.join()
         print("=" + "[ASK_LLM]打印回复参数（流式）" + "=" * 20)
         print(generated_text)
+
+    def cleanup(self):
+        """
+        清理模型资源，释放内存
+        """
+        print("正在清理 AskLLM 资源...")
+        try:
+            # 清理模型
+            if hasattr(self, 'model') and self.model is not None:
+                # 将模型移到 CPU（如果在 GPU 上）
+                self.model.cpu()
+                # 删除模型引用
+                del self.model
+                self.model = None
+                print("- 模型已释放")
+
+            # 清理 tokenizer
+            if hasattr(self, 'tokenizer') and self.tokenizer is not None:
+                del self.tokenizer
+                self.tokenizer = None
+                print("- Tokenizer 已释放")
+
+            # 清空 CUDA 缓存（如果使用了 GPU）
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                print("- CUDA 缓存已清空")
+
+            print("AskLLM 资源清理完成")
+        except Exception as e:
+            print(f"清理 AskLLM 资源时出错: {e}")

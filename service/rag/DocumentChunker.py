@@ -297,6 +297,35 @@ class DocumentChunker:
         else:
             raise ValueError(f"不支持的结构类型: {structure_type}，支持的类型: markdown, paragraph")
 
+    def cleanup(self):
+        """
+        清理 DocumentChunker 资源，释放内存
+        """
+        print("正在清理 DocumentChunker 资源...")
+        try:
+            # 清理 embeddings 模型
+            if hasattr(self, 'embeddings') and self.embeddings is not None:
+                # HuggingFaceEmbeddings 内部使用的是 sentence-transformers
+                # 尝试访问内部模型并清理
+                if hasattr(self.embeddings, 'client'):
+                    # 清理 sentence-transformers 模型
+                    if hasattr(self.embeddings.client, 'to'):
+                        self.embeddings.client.to('cpu')
+                    del self.embeddings.client
+
+                del self.embeddings
+                self.embeddings = None
+                print("- embeddings 模型已释放")
+
+            # 清空 CUDA 缓存（如果使用了 GPU）
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                print("- CUDA 缓存已清空")
+
+            print("DocumentChunker 资源清理完成")
+        except Exception as e:
+            print(f"清理 DocumentChunker 资源时出错: {e}")
+
 
 if __name__ == '__main__':
     # 测试示例
